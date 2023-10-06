@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Forms;
 using OxyPlot;
+using OxyPlot.Series;
 using OxyPlot.WindowsForms;
 
 namespace OptimizationApp
@@ -28,9 +29,8 @@ namespace OptimizationApp
         private Label labelA;
         private Label labelB;
         private Label labelE;
-        //private Label resultLabel;
         private TextBox localPointsTextBox;
-
+        private PlotView plotView;
 
         public MainForm()
         {
@@ -87,105 +87,156 @@ namespace OptimizationApp
             clearButton.Click += new System.EventHandler(this.ClearButton_Click);
             this.Controls.Add(clearButton);
 
-            // Создание Label для вывода результатов
-           /* resultLabel = new Label();
-            resultLabel.AutoSize = true;
-            resultLabel.Location = new System.Drawing.Point(10, 160);
-            this.Controls.Add(resultLabel);*/
-
-
             localPointsTextBox = new TextBox();
             localPointsTextBox.Multiline = true;
             localPointsTextBox.ScrollBars = ScrollBars.Vertical;
-            localPointsTextBox.Location = new System.Drawing.Point(10, 190); // Выберите подходящее положение
-            localPointsTextBox.Size = new System.Drawing.Size(300, 60); // Выберите подходящий размер
+            localPointsTextBox.Location = new System.Drawing.Point(10, 190);
+            localPointsTextBox.Size = new System.Drawing.Size(300, 60);
             this.Controls.Add(localPointsTextBox);
 
+            // Создание PlotView для отображения графика с точками
+            plotView = new PlotView();
+            plotView.Dock = DockStyle.Fill;
+            this.Controls.Add(plotView);
         }
 
-        private void CalculateButton_Click(object sender, EventArgs e)
-        {
-            // Проверка введенных данных
-            if (!double.TryParse(textBoxA.Text, out double a) ||
-              !double.TryParse(textBoxB.Text, out double b) ||
-              !double.TryParse(textBoxE.Text, out double epsilon))
-            {
-                MessageBox.Show("Пожалуйста, введите корректные числовые значения для a, b и e.");
-                return;
-            }
+       private void CalculateButton_Click(object sender, EventArgs e)
+{
+    // Проверка введенных данных
+    if (!double.TryParse(textBoxA.Text, out double a) ||
+        !double.TryParse(textBoxB.Text, out double b) ||
+        !double.TryParse(textBoxE.Text, out double epsilon))
+    {
+        MessageBox.Show("Пожалуйста, введите корректные числовые значения для a, b и e.");
+        return;
+    }
+
+    // Проверка и обмен значений, если a > b
+    if (a > b)
+    {
+        MessageBox.Show("Значение b должно быть больше значения a.");
+        return;
+    }
 
             // Функция для оптимизации
             Func<double, double> function = x => (27 - 18 * x + 2 * Math.Pow(x, 2)) * Math.Pow(Math.E, -x / 3);
             MessageBox.Show("Начинаю вычисления...");
 
-            // Вычисление минимума и максимума с использованием метода половинного деления
-            double minResult = OptimizationMethod(function, a, b, epsilon, OptimizationType.Minimum);
-            double maxResult = OptimizationMethod(function, a, b, epsilon, OptimizationType.Maximum);
+            // Создание объектов для поиска локальных минимумов и максимумов
+            var minFinder = new LocalMinimumFinder(function);
+            var maxFinder = new LocalMaximumFinder(function);
 
-            // Вывод результатов в Label
+            // Вычисление минимума и максимума с использованием новых классов
+            double minResult = minFinder.FindExtremum(a, b, epsilon);
+            double maxResult = maxFinder.FindExtremum(a, b, epsilon);
+
+            // Вывод результатов в TextBox
             localPointsTextBox.AppendText($"Локальный минимум: {minResult}\n");
-            localPointsTextBox.AppendText($"Локальный максимум: {maxResult}\\n");
+            localPointsTextBox.AppendText($"Локальный максимум: {maxResult}\n");
 
-            MessageBox.Show($"Локальный минимум: {minResult}\nЛокальный максимум: {maxResult}");
-            //MessageBox.Show(resultLabel.Text, "Результаты выполнены");
-            MessageBox.Show(" Перехожу к отображению графика.");
-
-            // Показать график автоматически после расчета
-            ShowGraph(a, b, function);
+            // Построение графика с точками минимума и максимума
+            ShowGraphWithExtremumPoints(a, b, function, minResult, maxResult);
         }
 
-
-        private void ClearButton_Click(object sender, EventArgs e)
-        {
-            // Очистка текстовых полей и Label
-            textBoxA.Clear();
-            textBoxB.Clear();
-            textBoxE.Clear();
-            //resultLabel.Text = string.Empty;
-            localPointsTextBox.Text = string.Empty;
-        }
-
-        private double OptimizationMethod(Func<double, double> function, double a, double b, double epsilon, OptimizationType type)
-        {
-            double x1, x2;
-            do
-            {
-                x1 = (a + b - epsilon) / 2;
-                x2 = (a + b + epsilon) / 2;
-
-                double f1 = function(x1);
-                double f2 = function(x2);
-
-                if ((type == OptimizationType.Minimum && f1 < f2) || (type == OptimizationType.Maximum && f1 > f2))
-                {
-                    b = x2;
-                }
-                else
-                {
-                    a = x1;
-                }
-            } while (Math.Abs(b - a) > epsilon);
-
-            return (a + b) / 2;
-        }
-
-        private void ShowGraph(double a, double b, Func<double, double> function)
+        private void ShowGraphWithExtremumPoints(double a, double b, Func<double, double> function, double minResult, double maxResult)
         {
             // Увеличиваем интервал для построения графика
             double expandedA = a - 1;
             double expandedB = b + 1;
 
             // Создание новой формы с графиком
-            using (GraphForm graphForm = new GraphForm(expandedA, expandedB, function))
+            using (GraphForm graphForm = new GraphForm(expandedA, expandedB, function, minResult, maxResult))
             {
                 graphForm.ShowDialog();
             }
         }
 
-        private enum OptimizationType
+        public class LocalMinimumFinder
         {
-            Minimum,
-            Maximum
+            private readonly Func<double, double> Function;
+
+            public LocalMinimumFinder(Func<double, double> function)
+            {
+                Function = function;
+            }
+
+            public double FindExtremum(double a, double b, double epsilon)
+            {
+                double x;
+
+                do
+                {
+                    x = (a + b) / 2;
+
+                    double f = Function(x);
+                    double fa = Function(a);
+                    double fb = Function(b);
+
+                    if (f < fa && f < fb)
+                    {
+                        b = x;
+                    }
+                    else if (fa < fb)
+                    {
+                        b = x;
+                    }
+                    else
+                    {
+                        a = x;
+                    }
+                } while (Math.Abs(b - a) > epsilon);
+
+                return (a + b) / 2;
+            }
+        }
+
+        public class LocalMaximumFinder
+        {
+            private readonly Func<double, double> Function;
+
+            public LocalMaximumFinder(Func<double, double> function)
+            {
+                Function = function;
+            }
+
+            public double FindExtremum(double a, double b, double epsilon)
+            {
+                double x;
+
+                do
+                {
+                    x = (a + b) / 2;
+
+                    double f = Function(x);
+                    double fa = Function(a);
+                    double fb = Function(b);
+
+                    if (f > fa && f > fb)
+                    {
+                        b = x;
+                    }
+                    else if (fa > fb)
+                    {
+                        b = x;
+                    }
+                    else
+                    {
+                        a = x;
+                    }
+                } while (Math.Abs(b - a) > epsilon);
+
+                return (a + b) / 2;
+            }
+        }
+
+
+
+        private void ClearButton_Click(object sender, EventArgs e)
+        {
+            textBoxA.Clear();
+            textBoxB.Clear();
+            textBoxE.Clear();
+            localPointsTextBox.Text = string.Empty;
         }
     }
 
@@ -193,18 +244,16 @@ namespace OptimizationApp
     {
         private PlotView plotView;
 
-        public GraphForm(double a, double b, Func<double, double> function)
+        public GraphForm(double a, double b, Func<double, double> function, double minResult, double maxResult)
         {
-            InitializeComponents(a, b, function);
+            InitializeComponents(a, b, function, minResult, maxResult);
         }
 
-        private void InitializeComponents(double a, double b, Func<double, double> function)
+        private void InitializeComponents(double a, double b, Func<double, double> function, double minResult, double maxResult)
         {
-            // Увеличиваем интервал для построения графика
             double expandedA = a - 1;
             double expandedB = b + 1;
 
-            // Создание PlotView для отображения графика
             plotView = new PlotView();
             plotView.Dock = DockStyle.Fill;
             this.Controls.Add(plotView);
@@ -212,53 +261,19 @@ namespace OptimizationApp
             // Создание модели графика
             var model = new PlotModel { Title = "График функции" };
 
-            // Добавление серии для графика
-            var lineSeries = new OxyPlot.Series.LineSeries();
+            var lineSeries = new LineSeries();
             for (double x = expandedA; x <= expandedB; x += 0.1)
             {
-                lineSeries.Points.Add(new OxyPlot.DataPoint(x, function(x)));
+                lineSeries.Points.Add(new DataPoint(x, function(x)));
             }
             model.Series.Add(lineSeries);
 
-            // Вычисление и добавление точек минимума и максимума
-            double minResult = OptimizationMethod(function, a, b, 0.001, OptimizationType.Minimum);
-            double maxResult = OptimizationMethod(function, a, b, 0.001, OptimizationType.Maximum);
-
+            // Добавление точек минимума и максимума на график
             model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation { X = minResult, Y = function(minResult), Text = "Min" });
             model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation { X = maxResult, Y = function(maxResult), Text = "Max" });
 
             // Установка модели для PlotView
             plotView.Model = model;
-        }
-
-        private double OptimizationMethod(Func<double, double> function, double a, double b, double epsilon, OptimizationType type)
-        {
-            double x1, x2;
-            do
-            {
-                x1 = (a + b - epsilon) / 2;
-                x2 = (a + b + epsilon) / 2;
-
-                double f1 = function(x1);
-                double f2 = function(x2);
-
-                if ((type == OptimizationType.Minimum && f1 < f2) || (type == OptimizationType.Maximum && f1 > f2))
-                {
-                    b = x2;
-                }
-                else
-                {
-                    a = x1;
-                }
-            } while (Math.Abs(b - a) > epsilon && a <= b);
-
-            return (a + b) / 2;
-        }
-
-        private enum OptimizationType
-        {
-            Minimum,
-            Maximum
         }
     }
 }
