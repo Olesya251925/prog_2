@@ -269,8 +269,8 @@ namespace OptimizationApp
             model.Series.Add(lineSeries);
 
             // Добавление точек минимума и максимума на график
-            model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation { X = minResult, Y = function(minResult), Text = "Min" });
-            model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation { X = maxResult, Y = function(maxResult), Text = "Max" });
+            model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation { X = minResult, Y = function(minResult), Text = "Min", TextPosition = new DataPoint(minResult, function(minResult) - 0.5) });
+            model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation { X = maxResult, Y = function(maxResult), Text = "Max", TextPosition = new DataPoint(maxResult, function(maxResult) + 0.5) });
 
             // Установка модели для PlotView
             plotView.Model = model;
