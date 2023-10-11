@@ -3,6 +3,8 @@ using System.Windows.Forms;
 using OxyPlot;
 using OxyPlot.Series;
 using OxyPlot.WindowsForms;
+using OxyPlot.Axes;
+
 
 namespace OptimizationApp
 {
@@ -103,9 +105,9 @@ namespace OptimizationApp
         private void CalculateButton_Click(object sender, EventArgs e)
         {
             // Проверка введенных данных
-            if (!double.TryParse(textBoxA.Text, out double a) ||
-                !double.TryParse(textBoxB.Text, out double b) ||
-                !double.TryParse(textBoxE.Text, out double epsilon))
+            if (!double.TryParse(textBoxA.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double a) ||
+                !double.TryParse(textBoxB.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double b) ||
+                !double.TryParse(textBoxE.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double epsilon))
             {
                 MessageBox.Show("Пожалуйста, введите корректные числовые значения для a, b и e.");
                 return;
@@ -274,8 +276,6 @@ namespace OptimizationApp
             }
         }
 
-
-
         private void ClearButton_Click(object sender, EventArgs e)
         {
             textBoxA.Clear();
@@ -306,6 +306,10 @@ namespace OptimizationApp
             // Создание модели графика
             var model = new PlotModel { Title = "График функции" };
 
+            // Добавление сетки
+            model.Axes.Add(new OxyPlot.Axes.LinearAxis { Position = AxisPosition.Bottom, MajorGridlineStyle = LineStyle.Solid, MajorGridlineColor = OxyColors.LightGray });
+            model.Axes.Add(new OxyPlot.Axes.LinearAxis { Position = AxisPosition.Left, MajorGridlineStyle = LineStyle.Solid, MajorGridlineColor = OxyColors.LightGray });
+
             var lineSeries = new LineSeries();
             for (double x = expandedA; x <= expandedB; x += 0.1)
             {
@@ -314,14 +318,25 @@ namespace OptimizationApp
             model.Series.Add(lineSeries);
 
             // Добавление точек минимума и максимума на график
-            model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation { X = minResult, Y = function(minResult), Text = "Min", TextPosition = new DataPoint(minResult, function(minResult) - 0.5) });
-            model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation { X = maxResult, Y = function(maxResult), Text = "Max", TextPosition = new DataPoint(maxResult, function(maxResult) + 0.5) });
+            model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation { X = minResult, Y = function(minResult), Text = "Min", TextPosition = new DataPoint(minResult, function(minResult) - 0.5),
+                TextColor = OxyColors.Blue
+            });
+            model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation { X = maxResult, Y = function(maxResult), Text = "Max", TextPosition = new DataPoint(maxResult, function(maxResult) + 0.5),
+                TextColor = OxyColors.Blue });
 
             // Добавление точки пересечения с осью X на график
-            model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation { X = rootResult, Y = 0, Text = "Root", TextPosition = new DataPoint(rootResult, 1) });
+            var rootAnnotation = new OxyPlot.Annotations.PointAnnotation { X = rootResult, Y = 0, Text = "Root", TextPosition = new DataPoint(rootResult, 1),
+                TextColor = OxyColors.Green };
+            model.Annotations.Add(rootAnnotation);
+
+            // Добавление линий, проходящих через точку пересечения
+            model.Annotations.Add(new OxyPlot.Annotations.LineAnnotation { Type = OxyPlot.Annotations.LineAnnotationType.Horizontal, Color = OxyColors.Green, Y = rootResult });
+            model.Annotations.Add(new OxyPlot.Annotations.LineAnnotation { Type = OxyPlot.Annotations.LineAnnotationType.Vertical, Color = OxyColors.Green, X = rootResult });
 
             // Установка модели для PlotView
             plotView.Model = model;
+
         }
+
     }
-}
+ }
