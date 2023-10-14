@@ -5,7 +5,6 @@ using OxyPlot.Series;
 using OxyPlot.WindowsForms;
 using OxyPlot.Axes;
 
-
 namespace OptimizationApp
 {
     static class Program
@@ -121,20 +120,9 @@ namespace OptimizationApp
             }
 
             // Функция для оптимизации
-            Func<double, double> function = x => (27 - 18 * x + 2 * Math.Pow(x, 2)) * Math.Pow(Math.E, -x / 3);
+            //Func<double, double> function = x => (27 - 18 * x + 2 * Math.Pow(x, 2)) * Math.Pow(Math.E, -x / 3);
+            Func<double, double> function = x => (10 * x - 10);
             MessageBox.Show("Начинаю вычисления...");
-
-            // Создание объектов для поиска локальных минимумов и максимумов
-            var minFinder = new LocalMinimumFinder(function);
-            var maxFinder = new LocalMaximumFinder(function);
-
-            // Вычисление минимума и максимума с использованием новых классов
-            double minResult = minFinder.FindExtremum(a, b, epsilon);
-            double maxResult = maxFinder.FindExtremum(a, b, epsilon);
-
-            // Вывод результатов в TextBox
-            localPointsTextBox.AppendText($"Локальный минимум: {minResult}\n");
-            localPointsTextBox.AppendText($"Локальный максимум: {maxResult}\n");
 
             // Создание объекта для поиска корня
             var rootFinder = new RootFinder(function);
@@ -145,18 +133,18 @@ namespace OptimizationApp
             // Вывод результатов в TextBox
             localPointsTextBox.AppendText($"Точка пересечения с осью X: {rootResult}\n");
 
-            // Построение графика с точками минимума, максимума и точкой пересечения
-            ShowGraphWithExtremumAndRootPoints(a, b, function, minResult, maxResult, rootResult);
+            // Построение графика с точкой пересечения
+            ShowGraphWithRootPoint(a, b, function, rootResult);
         }
 
-        private void ShowGraphWithExtremumAndRootPoints(double a, double b, Func<double, double> function, double minResult, double maxResult, double rootResult)
+        private void ShowGraphWithRootPoint(double a, double b, Func<double, double> function, double rootResult)
         {
             // Увеличиваем интервал для построения графика
             double expandedA = a - 1;
             double expandedB = b + 1;
 
             // Создание новой формы с графиком
-            using (GraphForm graphForm = new GraphForm(expandedA, expandedB, function, minResult, maxResult, rootResult))
+            using (GraphForm graphForm = new GraphForm(expandedA, expandedB, function, rootResult))
             {
                 graphForm.ShowDialog();
             }
@@ -173,6 +161,8 @@ namespace OptimizationApp
 
             public double FindRoot(double a, double b, double epsilon)
             {
+                int decimalPlaces = GetDecimalPlaces(epsilon);
+
                 double x;
 
                 do
@@ -191,88 +181,16 @@ namespace OptimizationApp
                     {
                         a = x;
                     }
-                } while (Math.Abs(Function(x)) > epsilon);
+                } while (Math.Round(Function(x), decimalPlaces) != 0);
 
-                return x;
-            }
-        }
-
-
-        public class LocalMinimumFinder
-        {
-            private readonly Func<double, double> Function;
-
-            public LocalMinimumFinder(Func<double, double> function)
-            {
-                Function = function;
+                return Math.Round(x, decimalPlaces);
             }
 
-            public double FindExtremum(double a, double b, double epsilon)
+            private int GetDecimalPlaces(double number)
             {
-                double x;
-
-                do
-                {
-                    x = (a + b) / 2;
-
-                    double f = Function(x);
-                    double fa = Function(a);
-                    double fb = Function(b);
-
-                    if (f < fa && f < fb)
-                    {
-                        b = x;
-                    }
-                    else if (fa < fb)
-                    {
-                        b = x;
-                    }
-                    else
-                    {
-                        a = x;
-                    }
-                } while (Math.Abs(b - a) > epsilon);
-
-                return (a + b) / 2;
-            }
-        }
-
-        public class LocalMaximumFinder
-        {
-            private readonly Func<double, double> Function;
-
-            public LocalMaximumFinder(Func<double, double> function)
-            {
-                Function = function;
-            }
-
-            public double FindExtremum(double a, double b, double epsilon)
-            {
-                double x;
-
-                do
-                {
-                    x = (a + b) / 2;
-
-                    double f = Function(x);
-                    double fa = Function(a);
-                    double fb = Function(b);
-
-                    if (f > fa && f > fb)
-                    {
-                        b = x;
-                    }
-                    else if (fa > fb)
-                    {
-                        b = x;
-                    }
-                    else
-                    {
-                        a = x;
-                    }
-                } while (Math.Abs(b - a) > epsilon);
-
-                return (a + b) / 2;
+                string epsilonString = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                int decimalPlaces = epsilonString.Length - epsilonString.IndexOf('.') - 1;
+                return decimalPlaces;
             }
         }
 
@@ -289,12 +207,12 @@ namespace OptimizationApp
     {
         private PlotView plotView;
 
-        public GraphForm(double a, double b, Func<double, double> function, double minResult, double maxResult, double rootResult)
+        public GraphForm(double a, double b, Func<double, double> function, double rootResult)
         {
-            InitializeComponents(a, b, function, minResult, maxResult, rootResult);
+            InitializeComponents(a, b, function, rootResult);
         }
 
-        private void InitializeComponents(double a, double b, Func<double, double> function, double minResult, double maxResult, double rootResult)
+        private void InitializeComponents(double a, double b, Func<double, double> function, double rootResult)
         {
             double expandedA = a - 1;
             double expandedB = b + 1;
@@ -317,16 +235,15 @@ namespace OptimizationApp
             }
             model.Series.Add(lineSeries);
 
-            // Добавление точек минимума и максимума на график
-            model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation { X = minResult, Y = function(minResult), Text = "Min", TextPosition = new DataPoint(minResult, function(minResult) - 0.5),
-                TextColor = OxyColors.Blue
-            });
-            model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation { X = maxResult, Y = function(maxResult), Text = "Max", TextPosition = new DataPoint(maxResult, function(maxResult) + 0.5),
-                TextColor = OxyColors.Blue });
-
             // Добавление точки пересечения с осью X на график
-            var rootAnnotation = new OxyPlot.Annotations.PointAnnotation { X = rootResult, Y = 0, Text = "Root", TextPosition = new DataPoint(rootResult, 1),
-                TextColor = OxyColors.Green };
+            var rootAnnotation = new OxyPlot.Annotations.PointAnnotation
+            {
+                X = rootResult,
+                Y = 0,
+                Text = "Root",
+                TextPosition = new DataPoint(rootResult, 1),
+                TextColor = OxyColors.Green
+            };
             model.Annotations.Add(rootAnnotation);
 
             // Добавление линий, проходящих через точку пересечения
@@ -335,8 +252,6 @@ namespace OptimizationApp
 
             // Установка модели для PlotView
             plotView.Model = model;
-
         }
-
     }
- }
+}
