@@ -166,31 +166,42 @@ namespace OptimizationApp
 
             public double FindRoot(double a, double b, double epsilon)
             {
+                MessageBox.Show($"Значение epsilon перед использованием: {epsilon}", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Определение количества знаков после запятой для округления
                 int decimalPlaces = GetDecimalPlaces(epsilon);
 
                 double x;
 
+                // Итеративный процесс метода дихотомии
                 do
                 {
+                    // Вычисление середины интервала
                     x = (a + b) / 2;
 
+                    // Значения функции на концах и середине интервала
                     double fa = Function(a);
                     double fb = Function(b);
                     double fx = Function(x);
 
+                    // Проверка знака функции на концах и середине интервала
                     if (fa * fx < 0)
                     {
+                        // Если знаки разные, сдвигаем правый конец интервала
                         b = x;
                     }
                     else
                     {
+                        // Если знаки одинаковы, сдвигаем левый конец интервала
                         a = x;
                     }
                 } while (Math.Round(Function(x), decimalPlaces) != 0);
 
+                // Округление результата до указанного числа знаков после запятой
                 return Math.Round(x, decimalPlaces);
             }
 
+            // Метод для определения количества знаков после запятой в числе
             private int GetDecimalPlaces(double number)
             {
                 string epsilonString = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
