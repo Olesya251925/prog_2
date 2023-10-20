@@ -106,7 +106,7 @@ namespace OptimizationApp
             // Проверка введенных данных
             if (!double.TryParse(textBoxA.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double a) ||
                 !double.TryParse(textBoxB.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double b) ||
-                !double.TryParse(textBoxE.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double epsilon))
+                !double.TryParse(textBoxE.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double enteredValue))
             {
                 MessageBox.Show("Пожалуйста, введите корректные числовые значения для a, b и e.");
                 return;
@@ -121,89 +121,33 @@ namespace OptimizationApp
 
             // Функция для оптимизации
             Func<double, double> function = x => (27 - 18 * x + 2 * Math.Pow(x, 2)) * Math.Pow(Math.E, -x / 3);
-            //Func<double, double> function = x => (10 * x - 10);
 
             // Создание объекта для поиска корня
             var rootFinder = new RootFinder(function);
 
+            // Определение точности в зависимости от введенного числа
+            double calculatedEpsilon = enteredValue >= 1 ? Math.Pow(10, -enteredValue) : enteredValue;
+
             // Вычисление корня с использованием нового класса
-            double rootResult = rootFinder.FindRoot(a, b, epsilon);
+            double rootResult = rootFinder.FindRoot(a, b, calculatedEpsilon);
 
             // Вывод результатов в TextBox
-            localPointsTextBox.AppendText($"Точка пересечения с осью X: {rootResult}\n");
+            localPointsTextBox.AppendText($"Точка пересечения с осью X : {rootResult}\r\n Заданная точность {enteredValue} = {calculatedEpsilon:0.#################}");
 
             // Построение графика с точкой пересечения
-            ShowGraphWithRootPoint(a, b, function, rootResult);
+            ShowGraphWithRootPoint(a, b, function, rootResult, calculatedEpsilon);
         }
 
-        private void ShowGraphWithRootPoint(double a, double b, Func<double, double> function, double rootResult)
+        private void ShowGraphWithRootPoint(double a, double b, Func<double, double> function, double rootResult, double epsilon)
         {
             // Увеличиваем интервал для построения графика
             double expandedA = a - 1;
             double expandedB = b + 1;
 
             // Создание новой формы с графиком
-            using (GraphForm graphForm = new GraphForm(expandedA, expandedB, function, rootResult))
+            using (GraphForm graphForm = new GraphForm(expandedA, expandedB, function, rootResult, epsilon))
             {
                 graphForm.ShowDialog();
-            }
-        }
-
-        //Здесь epsilon определяет, насколько близко значение функции в x должно быть к нулю,
-        //чтобы прекратить процесс дихотомии. Чем меньше значение epsilon,
-        //тем более точным будет результат, и тем меньше разница между
-        //найденным корнем и реальным корнем функции.
-
-        public class RootFinder
-        {
-            private readonly Func<double, double> Function;
-
-            public RootFinder(Func<double, double> function)
-            {
-                Function = function;
-            }
-
-            public double FindRoot(double a, double b, double epsilon)
-            {
-                // Определение количества знаков после запятой для округления
-                int decimalPlaces = GetDecimalPlaces(epsilon);
-
-                double x;
-
-                // Итеративный процесс метода дихотомии
-                do
-                {
-                    // Вычисление середины интервала
-                    x = (a + b) / 2;
-
-                    // Значения функции на концах и середине интервала
-                    double fa = Function(a);
-                    double fb = Function(b);
-                    double fx = Function(x);
-
-                    // Проверка знака функции на концах и середине интервала
-                    if (fa * fx < 0)
-                    {
-                        // Если знаки разные, сдвигаем правый конец интервала
-                        b = x;
-                    }
-                    else
-                    {
-                        // Если знаки одинаковы, сдвигаем левый конец интервала
-                        a = x;
-                    }
-                } while (Math.Round(Function(x), decimalPlaces) != 0);
-
-                // Округление результата до указанного числа знаков после запятой
-                return Math.Round(x, decimalPlaces);
-            }
-
-            // Метод для определения количества знаков после запятой в числе
-            private int GetDecimalPlaces(double number)
-            {
-                string epsilonString = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                int decimalPlaces = epsilonString.Length - epsilonString.IndexOf('.') - 1;
-                return decimalPlaces;
             }
         }
 
@@ -216,16 +160,69 @@ namespace OptimizationApp
         }
     }
 
+    public class RootFinder
+    {
+        private readonly Func<double, double> Function;
+
+        public RootFinder(Func<double, double> function)
+        {
+            Function = function;
+        }
+
+        public double FindRoot(double a, double b, double epsilon)
+        {
+            // Определение количества знаков после запятой для округления
+            int decimalPlaces = GetDecimalPlaces(epsilon);
+
+            double x;
+
+            // Итеративный процесс метода дихотомии
+            do
+            {
+                // Вычисление середины интервала
+                x = (a + b) / 2;
+
+                // Значения функции на концах и середине интервала
+                double fa = Function(a);
+                double fb = Function(b);
+                double fx = Function(x);
+
+                // Проверка знака функции на концах и середине интервала
+                if (fa * fx < 0)
+                {
+                    // Если знаки разные, сдвигаем правый конец интервала
+                    b = x;
+                }
+                else
+                {
+                    // Если знаки одинаковы, сдвигаем левый конец интервала
+                    a = x;
+                }
+            } while (Math.Round(Function(x), decimalPlaces) != 0);
+
+            // Округление результата до указанного числа знаков после запятой
+            return Math.Round(x, decimalPlaces);
+        }
+
+        // Метод для определения количества знаков после запятой в числе
+        private int GetDecimalPlaces(double number)
+        {
+            string epsilonString = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            int decimalPlaces = epsilonString.Length - epsilonString.IndexOf('.') - 1;
+            return decimalPlaces;
+        }
+    }
+
     public class GraphForm : Form
     {
         private PlotView plotView;
 
-        public GraphForm(double a, double b, Func<double, double> function, double rootResult)
+        public GraphForm(double a, double b, Func<double, double> function, double rootResult, double epsilon)
         {
-            InitializeComponents(a, b, function, rootResult);
+            InitializeComponents(a, b, function, rootResult, epsilon);
         }
 
-        private void InitializeComponents(double a, double b, Func<double, double> function, double rootResult)
+        private void InitializeComponents(double a, double b, Func<double, double> function, double rootResult, double epsilon)
         {
             double expandedA = a - 1;
             double expandedB = b + 1;
@@ -242,10 +239,14 @@ namespace OptimizationApp
             model.Axes.Add(new OxyPlot.Axes.LinearAxis { Position = AxisPosition.Left, MajorGridlineStyle = LineStyle.Solid, MajorGridlineColor = OxyColors.LightGray });
 
             var lineSeries = new LineSeries();
-            for (double x = expandedA; x <= expandedB; x += 0.1)
+            int numberOfPoints = (int)((expandedB - expandedA) / epsilon);
+
+            for (int i = 0; i <= numberOfPoints; i++)
             {
+                double x = expandedA + i * epsilon;
                 lineSeries.Points.Add(new DataPoint(x, function(x)));
             }
+
             model.Series.Add(lineSeries);
 
             // Добавление точки пересечения с осью X на график
