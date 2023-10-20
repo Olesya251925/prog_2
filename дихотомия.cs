@@ -126,7 +126,7 @@ namespace OptimizationApp
             var rootFinder = new RootFinder(function);
 
             // Определение точности в зависимости от введенного числа
-            double calculatedEpsilon = enteredValue >= 1 ? Math.Pow(10, -enteredValue) : enteredValue;
+            double calculatedEpsilon = enteredValue >= 0 ? Math.Pow(10, -enteredValue) : enteredValue;
 
             // Вычисление корня с использованием нового класса
             double rootResult = rootFinder.FindRoot(a, b, calculatedEpsilon);
