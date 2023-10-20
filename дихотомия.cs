@@ -120,9 +120,8 @@ namespace OptimizationApp
             }
 
             // Функция для оптимизации
-            //Func<double, double> function = x => (27 - 18 * x + 2 * Math.Pow(x, 2)) * Math.Pow(Math.E, -x / 3);
-            Func<double, double> function = x => (10 * x - 10);
-            MessageBox.Show("Начинаю вычисления...");
+            Func<double, double> function = x => (27 - 18 * x + 2 * Math.Pow(x, 2)) * Math.Pow(Math.E, -x / 3);
+            //Func<double, double> function = x => (10 * x - 10);
 
             // Создание объекта для поиска корня
             var rootFinder = new RootFinder(function);
@@ -166,8 +165,6 @@ namespace OptimizationApp
 
             public double FindRoot(double a, double b, double epsilon)
             {
-                MessageBox.Show($"Значение epsilon перед использованием: {epsilon}", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
                 // Определение количества знаков после запятой для округления
                 int decimalPlaces = GetDecimalPlaces(epsilon);
 
