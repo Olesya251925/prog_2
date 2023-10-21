@@ -40,7 +40,6 @@ namespace OptimizationApp
 
         private void InitializeComponents()
         {
-            // Создание текстовых полей
             labelA = new Label();
             labelA.Text = "Введите значение a:";
             labelA.Location = new System.Drawing.Point(10, 10);
@@ -74,14 +73,12 @@ namespace OptimizationApp
             textBoxE.Size = new System.Drawing.Size(100, 20);
             this.Controls.Add(textBoxE);
 
-            // Создание кнопки "Рассчитать"
             calculateButton = new Button();
             calculateButton.Text = "Рассчитать";
             calculateButton.Location = new System.Drawing.Point(10, 100);
             calculateButton.Click += new System.EventHandler(this.CalculateButton_Click);
             this.Controls.Add(calculateButton);
 
-            // Создание кнопки "Очистить"
             clearButton = new Button();
             clearButton.Text = "Очистить";
             clearButton.Location = new System.Drawing.Point(calculateButton.Left + calculateButton.Width + 10, 100);
@@ -92,10 +89,9 @@ namespace OptimizationApp
             localPointsTextBox.Multiline = true;
             localPointsTextBox.ScrollBars = ScrollBars.Vertical;
             localPointsTextBox.Location = new System.Drawing.Point(10, 190);
-            localPointsTextBox.Size = new System.Drawing.Size(300, 60);
+            localPointsTextBox.Size = new System.Drawing.Size(300, 150);
             this.Controls.Add(localPointsTextBox);
 
-            // Создание PlotView для отображения графика с точками
             plotView = new PlotView();
             plotView.Dock = DockStyle.Fill;
             this.Controls.Add(plotView);
@@ -103,51 +99,158 @@ namespace OptimizationApp
 
         private void CalculateButton_Click(object sender, EventArgs e)
         {
-            // Проверка введенных данных
             if (!double.TryParse(textBoxA.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double a) ||
                 !double.TryParse(textBoxB.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double b) ||
-                !double.TryParse(textBoxE.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double enteredValue))
+                !double.TryParse(textBoxE.Text.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double epsilon))
             {
                 MessageBox.Show("Пожалуйста, введите корректные числовые значения для a, b и e.");
                 return;
             }
 
-            // Проверка и обмен значений, если a > b
+            int epsilonLength = textBoxE.Text.Length - textBoxE.Text.IndexOf('.') - 1;
+            epsilon = Math.Pow(10, -epsilonLength);
+
             if (a > b)
             {
                 MessageBox.Show("Значение b должно быть больше значения a.");
                 return;
             }
 
-            // Функция для оптимизации
             Func<double, double> function = x => (27 - 18 * x + 2 * Math.Pow(x, 2)) * Math.Pow(Math.E, -x / 3);
+            Func<double, double> derivative = x => -1 * (2 * x * x * Math.Exp(-x / 3) / 3) + 10 * x * Math.Exp(-x / 3) - 27 * Math.Exp(-x / 3);
 
-            // Создание объекта для поиска корня
-            var rootFinder = new RootFinder(function);
+            //Func<double, double> function = x => (10 * x - 10);
+            //Func<double, double> derivative = x => 10;
 
-            // Определение точности в зависимости от введенного числа
-            double calculatedEpsilon = enteredValue >= 0 ? Math.Pow(10, -enteredValue) : enteredValue;
+            var minFinder = new LocalMinimumFinder(function, derivative);
+            var maxFinder = new LocalMaximumFinder(function, derivative);
 
-            // Вычисление корня с использованием нового класса
-            double rootResult = rootFinder.FindRoot(a, b, calculatedEpsilon);
+            var rootFinder = new RootFinder(function, derivative);
 
-            // Вывод результатов в TextBox
-            localPointsTextBox.AppendText($"Точка пересечения с осью X : {rootResult}\r\n Заданная точность {enteredValue} = {calculatedEpsilon:0.#################}");
+            double minResult = minFinder.FindMinimum(a, b, epsilon);
+            double maxResult = maxFinder.FindMaximum(a, b, epsilon);
+            double rootResult = rootFinder.FindRoot(a, b, epsilon);
 
-            // Построение графика с точкой пересечения
-            ShowGraphWithRootPoint(a, b, function, rootResult, calculatedEpsilon);
+            double functionMinResult = function(minResult);
+            double functionMaxResult = function(maxResult);
+            double functionRootResult = function(rootResult);
+
+            localPointsTextBox.AppendText($"Локальный минимум: {minResult}\n");
+            localPointsTextBox.AppendText($"Локальный максимум: {maxResult}\n");
+            localPointsTextBox.AppendText($"Точка пересечения с осью X: {rootResult}\n");
+            localPointsTextBox.AppendText($"Значение функции: {functionRootResult}\n");
+
+            ShowGraphWithExtremumAndRootPoints(a, b, function, minResult, maxResult, rootResult);
         }
 
-        private void ShowGraphWithRootPoint(double a, double b, Func<double, double> function, double rootResult, double epsilon)
+        private void ShowGraphWithExtremumAndRootPoints(double a, double b, Func<double, double> function, double minResult, double maxResult, double rootResult)
         {
-            // Увеличиваем интервал для построения графика
             double expandedA = a - 1;
             double expandedB = b + 1;
 
-            // Создание новой формы с графиком
-            using (GraphForm graphForm = new GraphForm(expandedA, expandedB, function, rootResult, epsilon))
+            using (GraphForm graphForm = new GraphForm(expandedA, expandedB, function, minResult, maxResult, rootResult))
             {
                 graphForm.ShowDialog();
+            }
+        }
+
+        public class RootFinder
+        {
+            private readonly Func<double, double> Function;
+            private readonly Func<double, double> Derivative;
+
+            public RootFinder(Func<double, double> function, Func<double, double> derivative)
+            {
+                Function = function;
+                Derivative = derivative;
+            }
+
+            public double FindRoot(double a, double b, double epsilon)
+            {
+                int decimalPlaces = GetDecimalPlaces(epsilon);
+
+                double x = (a + b) / 2;
+
+                while (Math.Abs(Function(x)) > epsilon)
+                {
+                    x = x - Function(x) / Derivative(x);
+                }
+
+                return Math.Round(x, decimalPlaces);
+            }
+
+            // Метод для определения количества знаков после запятой в числе
+            private int GetDecimalPlaces(double number)
+            {
+                string epsilonString = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                int decimalPlaces = epsilonString.Length - epsilonString.IndexOf('.') - 1;
+                return decimalPlaces;
+            }
+        }
+
+        public class LocalMinimumFinder
+        {
+            private readonly Func<double, double> Function;
+            private readonly Func<double, double> Derivative;
+
+            public LocalMinimumFinder(Func<double, double> function, Func<double, double> derivative)
+            {
+                Function = function;
+                Derivative = derivative;
+            }
+
+            public double FindMinimum(double a, double b, double epsilon)
+            {
+                double min;
+                double delta = epsilon / 10;
+
+                while (b - a >= epsilon)
+                {
+                    double middle = (a + b) / 2;
+                    double lambda = middle - delta, mu = middle + delta;
+
+                    if (Function(lambda) < Function(mu))
+                        b = mu;
+                    else
+                        a = lambda;
+                }
+
+                min = (a + b) / 2;
+
+                return min;
+            }
+        }
+
+        public class LocalMaximumFinder
+        {
+            private readonly Func<double, double> Function;
+            private readonly Func<double, double> Derivative;
+
+            public LocalMaximumFinder(Func<double, double> function, Func<double, double> derivative)
+            {
+                Function = function;
+                Derivative = derivative;
+            }
+
+            public double FindMaximum(double a, double b, double epsilon)
+            {
+                double max;
+                double delta = epsilon / 10;
+
+                while (b - a >= epsilon)
+                {
+                    double middle = (a + b) / 2;
+                    double lambda = middle - delta, mu = middle + delta;
+
+                    if (Function(lambda) > Function(mu))
+                        b = mu;
+                    else
+                        a = lambda;
+                }
+
+                max = (a + b) / 2;
+
+                return max;
             }
         }
 
@@ -160,69 +263,16 @@ namespace OptimizationApp
         }
     }
 
-    public class RootFinder
-    {
-        private readonly Func<double, double> Function;
-
-        public RootFinder(Func<double, double> function)
-        {
-            Function = function;
-        }
-
-        public double FindRoot(double a, double b, double epsilon)
-        {
-            // Определение количества знаков после запятой для округления
-            int decimalPlaces = GetDecimalPlaces(epsilon);
-
-            double x;
-
-            // Итеративный процесс метода дихотомии
-            do
-            {
-                // Вычисление середины интервала
-                x = (a + b) / 2;
-
-                // Значения функции на концах и середине интервала
-                double fa = Function(a);
-                double fb = Function(b);
-                double fx = Function(x);
-
-                // Проверка знака функции на концах и середине интервала
-                if (fa * fx < 0)
-                {
-                    // Если знаки разные, сдвигаем правый конец интервала
-                    b = x;
-                }
-                else
-                {
-                    // Если знаки одинаковы, сдвигаем левый конец интервала
-                    a = x;
-                }
-            } while (Math.Round(Function(x), decimalPlaces) != 0);
-
-            // Округление результата до указанного числа знаков после запятой
-            return Math.Round(x, decimalPlaces);
-        }
-
-        // Метод для определения количества знаков после запятой в числе
-        private int GetDecimalPlaces(double number)
-        {
-            string epsilonString = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            int decimalPlaces = epsilonString.Length - epsilonString.IndexOf('.') - 1;
-            return decimalPlaces;
-        }
-    }
-
     public class GraphForm : Form
     {
         private PlotView plotView;
 
-        public GraphForm(double a, double b, Func<double, double> function, double rootResult, double epsilon)
+        public GraphForm(double a, double b, Func<double, double> function, double minResult, double maxResult, double rootResult)
         {
-            InitializeComponents(a, b, function, rootResult, epsilon);
+            InitializeComponents(a, b, function, minResult, maxResult, rootResult);
         }
 
-        private void InitializeComponents(double a, double b, Func<double, double> function, double rootResult, double epsilon)
+        private void InitializeComponents(double a, double b, Func<double, double> function, double minResult, double maxResult, double rootResult)
         {
             double expandedA = a - 1;
             double expandedB = b + 1;
@@ -231,25 +281,35 @@ namespace OptimizationApp
             plotView.Dock = DockStyle.Fill;
             this.Controls.Add(plotView);
 
-            // Создание модели графика
             var model = new PlotModel { Title = "График функции" };
 
-            // Добавление сетки
             model.Axes.Add(new OxyPlot.Axes.LinearAxis { Position = AxisPosition.Bottom, MajorGridlineStyle = LineStyle.Solid, MajorGridlineColor = OxyColors.LightGray });
             model.Axes.Add(new OxyPlot.Axes.LinearAxis { Position = AxisPosition.Left, MajorGridlineStyle = LineStyle.Solid, MajorGridlineColor = OxyColors.LightGray });
 
             var lineSeries = new LineSeries();
-            int numberOfPoints = (int)((expandedB - expandedA) / epsilon);
-
-            for (int i = 0; i <= numberOfPoints; i++)
+            for (double x = expandedA; x <= expandedB; x += 0.01)
             {
-                double x = expandedA + i * epsilon;
                 lineSeries.Points.Add(new DataPoint(x, function(x)));
             }
-
             model.Series.Add(lineSeries);
 
-            // Добавление точки пересечения с осью X на график
+            model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation
+            {
+                X = minResult,
+                Y = function(minResult),
+                Text = "Min",
+                TextPosition = new DataPoint(minResult, function(minResult) - 0.5),
+                TextColor = OxyColors.Blue
+            });
+            model.Annotations.Add(new OxyPlot.Annotations.PointAnnotation
+            {
+                X = maxResult,
+                Y = function(maxResult),
+                Text = "Max",
+                TextPosition = new DataPoint(maxResult, function(maxResult) + 0.5),
+                TextColor = OxyColors.Blue
+            });
+
             var rootAnnotation = new OxyPlot.Annotations.PointAnnotation
             {
                 X = rootResult,
@@ -260,11 +320,9 @@ namespace OptimizationApp
             };
             model.Annotations.Add(rootAnnotation);
 
-            // Добавление линий, проходящих через точку пересечения
             model.Annotations.Add(new OxyPlot.Annotations.LineAnnotation { Type = OxyPlot.Annotations.LineAnnotationType.Horizontal, Color = OxyColors.Green, Y = rootResult });
             model.Annotations.Add(new OxyPlot.Annotations.LineAnnotation { Type = OxyPlot.Annotations.LineAnnotationType.Vertical, Color = OxyColors.Green, X = rootResult });
 
-            // Установка модели для PlotView
             plotView.Model = model;
         }
     }
